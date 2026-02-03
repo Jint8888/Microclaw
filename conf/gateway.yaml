@@ -1,0 +1,64 @@
+# Agent Zero Gateway Configuration V4.1
+#
+# This file configures the multi-channel gateway for Agent Zero.
+# Environment variables can be used with ${VAR_NAME} syntax.
+
+gateway:
+  # Server configuration
+  host: "127.0.0.1"  # Use "0.0.0.0" for remote access
+  port: 18900
+
+  # Authentication (required for remote access)
+  auth:
+    token: "${GATEWAY_AUTH_TOKEN}"  # Set via environment variable
+
+  # Features
+  hot_reload: true   # Enable config hot reload
+  verbose: false     # Verbose logging
+
+  # Session management
+  session:
+    max_idle_hours: 24           # Max idle time before cleanup
+    cleanup_interval_seconds: 3600  # Cleanup check interval
+
+# Channel configurations
+channels:
+  # Telegram Bot
+  telegram:
+    enabled: true  # ✅ Enabled
+    token: "${TELEGRAM_BOT_TOKEN}"
+    account_id: "main"
+    require_mention_in_groups: true  # Require @mention in groups
+    whitelist: [6524225822]  # Only allow this user ID
+    blacklist: []  # Blocked user IDs
+    rate_limit:
+      max_requests: 10
+      window_seconds: 60
+
+  # Discord Bot
+  discord:
+    enabled: true  # Set to true to enable
+    token: "${DISCORD_BOT_TOKEN}"
+    account_id: "main"
+    respond_to_dms: true      # Respond to direct messages
+    require_mention: true     # Require @mention in servers
+    allowed_guilds: []        # Empty = all guilds, or list guild IDs
+    whitelist: []
+    blacklist: []
+    rate_limit:
+      max_requests: 15
+      window_seconds: 60
+
+# Future channels (not yet implemented)
+#  email:
+#    enabled: false
+#    smtp_host: "smtp.example.com"
+#    smtp_port: 587
+#    imap_host: "imap.example.com"
+#    username: "${EMAIL_USERNAME}"
+#    password: "${EMAIL_PASSWORD}"
+#
+#  slack:
+#    enabled: false
+#    bot_token: "${SLACK_BOT_TOKEN}"
+#    app_token: "${SLACK_APP_TOKEN}"

@@ -1,0 +1,91 @@
+# ============================================================
+# Agent Zero - Unified Docker Compose (V4.1)
+# ============================================================
+#
+# Single container deployment with integrated Gateway
+# Architecture: Web UI + Gateway running in same container
+#
+# Usage:
+#   docker-compose build
+#   docker-compose up -d
+#   docker-compose logs -f
+#
+# Ports:
+#   - 50080: Web UI
+#   - 50002: Gateway API (Telegram, Discord, etc.)
+#
+# ============================================================
+
+version: "3.8"
+
+services:
+  agent-zero:
+    build:
+      context: .
+      dockerfile: docker/run/Dockerfile
+      args:
+        BRANCH: local
+        CACHE_DATE: ${CACHE_DATE:-none}
+    image: agent-zero-dev:local
+    container_name: agent-zero-dev
+    ports:
+      - "50080:80"       # Web UI
+      - "50002:50002"    # Gateway API
+    environment:
+      # Gateway configuration
+      - GATEWAY_PORT=50002
+      - GATEWAY_HOST=0.0.0.0
+      - GATEWAY_AUTH_TOKEN=${GATEWAY_AUTH_TOKEN:-}
+
+      # Channel tokens (optional - configure as needed)
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN:-}
+
+      # Email configuration (optional)
+      - EMAIL_IMAP_HOST=${EMAIL_IMAP_HOST:-}
+      - EMAIL_IMAP_USER=${EMAIL_IMAP_USER:-}
+      - EMAIL_IMAP_PASSWORD=${EMAIL_IMAP_PASSWORD:-}
+
+      # Agent Zero LLM configuration
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+
+      # Debug mode
+      - DEBUG=${DEBUG:-false}
+
+    volumes:
+      # Development: mount source code for live editing
+      - .:/git/agent-zero
+
+      # Persistent data directories
+      - ./data:/a0/data
+      - ./memory:/a0/memory
+      - ./knowledge:/a0/knowledge
+      - ./tmp:/a0/tmp
+      - ./logs:/a0/logs
+
+      # Configuration files
+      - ./conf:/a0/conf
+
+    restart: unless-stopped
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/", "&&", "curl", "-f", "http://localhost:50002/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    networks:
+      - agent-zero-network
+
+networks:
+  agent-zero-network:
+    driver: bridge
+    name: agent-zero-net

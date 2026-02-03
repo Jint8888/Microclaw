@@ -1,0 +1,151 @@
+# ============================================================
+# Agent Zero - Unified Requirements
+# Version: 1.0.0
+# Updated: 2026-02-02
+# ============================================================
+
+# ========================================
+# Core Framework
+# ========================================
+
+# Web Framework
+flask[async]==3.0.3
+flask-basicauth==0.2.0
+a2wsgi==1.10.8
+
+# Gateway (FastAPI)
+fastapi>=0.115.0,<1.0.0
+uvicorn[standard]>=0.32.0,<1.0.0
+websockets>=15.0.1,<16.0
+
+# ========================================
+# LLM & AI
+# ========================================
+
+litellm==1.79.3
+openai>=2.7.2,<3.0.0
+langchain-core==0.3.49
+langchain-community==0.3.19
+langchain-unstructured==0.1.6
+sentence-transformers==3.0.1
+tiktoken==0.8.0
+
+# ========================================
+# Browser & Web Scraping
+# ========================================
+
+browser-use==0.11.5
+playwright==1.52.0
+duckduckgo-search==6.1.12
+newspaper3k==0.2.8
+lxml_html_clean==0.3.1
+beautifulsoup4>=4.12.3
+html2text>=2024.2.26
+markdownify>=1.2.0
+
+# ========================================
+# Document Processing
+# ========================================
+
+pypdf==6.0.0
+pymupdf==1.25.3
+unstructured[all-docs]==0.16.23
+unstructured-client==0.31.0
+pytesseract==0.3.13
+pdf2image==1.17.0
+
+# ========================================
+# Communication Channels (Gateway)
+# ========================================
+
+# Telegram Bot
+python-telegram-bot>=21.0,<22.0
+
+# Discord Bot
+discord.py>=2.4.0,<3.0.0
+
+# Email
+imapclient>=3.0.1
+exchangelib>=5.4.3
+
+# ========================================
+# HTTP & Networking
+# ========================================
+
+httpx>=0.27.0,<1.0.0
+aiohttp>=3.10.0,<4.0.0
+paramiko==3.5.0
+
+# ========================================
+# Data & Storage
+# ========================================
+
+faiss-cpu==1.11.0
+pydantic>=2.9.0,<3.0.0
+
+# ========================================
+# MCP & Agent Protocols
+# ========================================
+
+mcp==1.13.1
+fastmcp>=2.5.0
+fasta2a==0.5.0
+
+# ========================================
+# Configuration & Environment
+# ========================================
+
+python-dotenv>=1.0.0,<2.0.0
+pyyaml>=6.0.2,<7.0.0
+watchdog>=5.0.0,<6.0.0
+
+# ========================================
+# Utilities
+# ========================================
+
+# Text & Markdown
+markdown==3.7
+simpleeval==1.0.3
+webcolors==24.6.0
+
+# Audio & Speech
+openai-whisper==20240930
+kokoro>=0.9.2
+soundfile==0.13.1
+
+# System & Process
+docker==7.1.0
+GitPython==3.1.43
+psutil>=7.0.0
+pathspec>=0.12.1
+nest-asyncio==1.6.0
+crontab==1.0.1
+inputimeout==1.0.4
+
+# Async
+ansio==0.0.1
+
+# Time & Timezone
+pytz==2024.2
+
+# Validation
+flaredantic==0.1.4
+werkzeug>=3.0.0,<4.0.0
+
+# Interactive
+ipython>=8.0.0
+
+# ========================================
+# Platform Specific
+# ========================================
+
+pywinpty==3.0.2; sys_platform == "win32"
+
+# ========================================
+# Development & Testing (Optional)
+# ========================================
+
+# Uncomment for development:
+# pytest>=8.4.2
+# pytest-asyncio>=1.2.0
+# pytest-mock>=3.15.1

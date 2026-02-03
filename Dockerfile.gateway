@@ -1,0 +1,66 @@
+# ============================================================
+# Agent Zero Gateway - Docker Image (DEPRECATED)
+# Version: 1.0.0
+# Purpose: Channel Integration Gateway (Telegram, Discord, Email, etc.)
+# Port: 50002
+# ============================================================
+#
+# ⚠️ DEPRECATED: This file is kept for backward compatibility only.
+#
+# RECOMMENDED: Use the main docker/run/Dockerfile instead.
+# The main Dockerfile now includes Gateway support with integrated
+# single-process parallel architecture (V4.1 design).
+#
+# Build unified container:
+#   docker-compose build
+#   docker-compose up -d
+#
+# ============================================================
+
+# Use the pre-built base image for A0
+FROM agent0ai/agent-zero-base:latest
+
+# Set BRANCH to "local" if not provided
+ARG BRANCH=local
+ENV BRANCH=$BRANCH
+
+# Set Gateway specific environment variables
+ENV GATEWAY_PORT=50002
+ENV GATEWAY_HOST=0.0.0.0
+
+# Copy filesystem files to root
+COPY ./docker/run/fs/ /
+
+# Copy current development files to git
+COPY ./ /git/agent-zero
+
+# Fix Windows line endings (CRLF -> LF) for all shell scripts
+RUN find /ins /exe /git -type f -name "*.sh" -exec sed -i 's/\r$//' {} \; 2>/dev/null || true
+
+# pre installation steps
+RUN bash /ins/pre_install.sh $BRANCH
+
+# install A0
+RUN bash /ins/install_A0.sh $BRANCH
+
+# install additional software
+RUN bash /ins/install_additional.sh $BRANCH
+
+# cleanup repo and install A0 without caching, this speeds up builds
+ARG CACHE_DATE=none
+RUN echo "cache buster $CACHE_DATE" && bash /ins/install_A02.sh $BRANCH
+
+# post installation steps
+RUN bash /ins/post_install.sh $BRANCH
+
+# Expose ports:
+# - 22: SSH
+# - 80: Web UI
+# - 50002: Gateway API
+# - 9000-9009: Additional services
+EXPOSE 22 80 50002 9000-9009
+
+RUN chmod +x /exe/initialize.sh /exe/run_A0.sh /exe/run_tunnel_api.sh
+
+# initialize runtime and switch to supervisord
+CMD ["/exe/initialize.sh", "$BRANCH"]

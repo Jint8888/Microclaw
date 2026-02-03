@@ -1,0 +1,94 @@
+# ============================================================
+# Agent Zero Gateway Docker Compose (DEPRECATED - Use docker-compose.yml instead)
+# Version: 5.0
+# Port: 50002 (Gateway API)
+# ============================================================
+#
+# ⚠️ DEPRECATED: This file is kept for backward compatibility only.
+#
+# RECOMMENDED: Use the unified docker-compose.yml in project root instead.
+# The unified configuration runs both Web UI and Gateway in a single container,
+# following the V4.1 single-process parallel architecture design.
+#
+# Usage (if you still need standalone Gateway):
+#   docker-compose -f docker-compose.gateway.yml build
+#   docker-compose -f docker-compose.gateway.yml up -d
+#   docker-compose -f docker-compose.gateway.yml logs -f
+#
+# Note: This configuration is separate from the main agent-zero container
+#       Main agent-zero uses port 50080, this gateway uses port 50002
+
+version: "3.8"
+
+services:
+  agent-zero-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.gateway
+      args:
+        BRANCH: local
+        CACHE_DATE: ${CACHE_DATE:-none}
+    image: agent-zero-gateway:local
+    container_name: agent-zero-gateway
+    ports:
+      - "50002:50002"   # Gateway API
+      - "50082:80"      # Web UI (internal)
+    environment:
+      # Gateway configuration
+      - GATEWAY_PORT=50002
+      - GATEWAY_HOST=0.0.0.0
+      - GATEWAY_AUTH_TOKEN=${GATEWAY_AUTH_TOKEN:-}
+
+      # Channel tokens
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN:-}
+
+      # Email configuration (optional)
+      - EMAIL_IMAP_HOST=${EMAIL_IMAP_HOST:-}
+      - EMAIL_IMAP_USER=${EMAIL_IMAP_USER:-}
+      - EMAIL_IMAP_PASSWORD=${EMAIL_IMAP_PASSWORD:-}
+
+      # Agent Zero LLM configuration
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+
+      # Debug mode
+      - DEBUG=${DEBUG:-false}
+
+    volumes:
+      # Configuration files (read-only)
+      - ./conf:/app/conf:ro
+
+      # Persistent data
+      - ./data:/app/data
+      - ./memory:/app/memory
+      - ./knowledge:/app/knowledge
+
+      # Temporary files (including settings.json and uploads)
+      - ./tmp:/app/tmp
+
+      # Logs
+      - ./logs:/app/logs
+
+    restart: unless-stopped
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:50002/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    networks:
+      - agent-zero-gateway-network
+
+networks:
+  agent-zero-gateway-network:
+    driver: bridge
+    name: agent-zero-gateway-net
