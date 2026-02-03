@@ -53,10 +53,11 @@ services:
       # Debug mode
       - DEBUG=${DEBUG:-false}
 
-      # Enhanced Memory System
-      - MEMORY_ENHANCED_ENABLED=${MEMORY_ENHANCED_ENABLED:-false}
+      # Memory System
       - MEMORY_CACHE_ENABLED=${MEMORY_CACHE_ENABLED:-true}
       - MEMORY_CACHE_SIZE=${MEMORY_CACHE_SIZE:-1000}
+      - MEMORY_VECTOR_BACKEND=${MEMORY_VECTOR_BACKEND:-auto}
+      - MEMORY_VECTOR_THRESHOLD=${MEMORY_VECTOR_THRESHOLD:-10000}
 
     volumes:
       # Development: mount source code for live editing
@@ -89,8 +90,12 @@ services:
 
     networks:
       - agent-zero-network
+      - postgres-mcp-network
 
 networks:
   agent-zero-network:
     driver: bridge
     name: agent-zero-net
+  postgres-mcp-network:
+    external: true
+    name: postgres-mcp_postgres-net

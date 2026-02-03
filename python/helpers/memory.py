@@ -35,6 +35,20 @@ from python.helpers.memory_cache import EmbeddingCache
 from python.helpers.memory_fts import FTS5Manager
 from python.helpers.memory_sqlite_vec import VectorStore, SQLITE_VEC_AVAILABLE
 from python.helpers.memory_hybrid import HybridRetriever
+from python.helpers.memory_adaptive import AdaptiveVectorStore, AdaptiveVectorConfig
+
+# Import Phase 3-6 modules
+from python.helpers.memory_session import SessionManager
+from python.helpers.memory_sync import MemorySync
+from python.helpers.memory_flush import MemoryFlush, MemoryFlushConfig
+from python.helpers.session_policy import SessionPolicyManager, get_policy_manager
+
+# Optional: File watcher (requires watchdog)
+try:
+    from python.helpers.memory_watcher import MemoryFileWatcher, WATCHDOG_AVAILABLE
+except ImportError:
+    MemoryFileWatcher = None
+    WATCHDOG_AVAILABLE = False
 
 # Suppress verbose logging
 logging.getLogger("langchain_core.vectorstores.base").setLevel(logging.ERROR)
@@ -64,12 +78,23 @@ class Memory:
     # Backward compatibility alias
     Area = MemoryArea
     
-    # Class-level indexes
+    # Class-level indexes (Phase 1-2)
     _fts_index: Dict[str, FTS5Manager] = {}
     _vec_index: Dict[str, VectorStore] = {}
     _hybrid_index: Dict[str, HybridRetriever] = {}
     _cache_index: Dict[str, EmbeddingCache] = {}
     _embeddings_model_cache: Dict[str, Any] = {}
+    
+    # Class-level indexes (Phase 3-6)
+    _session_index: Dict[str, SessionManager] = {}
+    _sync_index: Dict[str, MemorySync] = {}
+    _watcher_index: Dict[str, "MemoryFileWatcher"] = {}
+    _flush_manager: Optional[MemoryFlush] = None
+    _policy_manager: Optional[SessionPolicyManager] = None
+    
+    # Instance caching to prevent repeated initialization
+    _instance_index: Dict[str, "Memory"] = {}
+    _knowledge_loaded: set = set()  # Track which memory_subdirs have loaded knowledge
     
     def __init__(
         self,
@@ -107,9 +132,13 @@ class Memory:
             agent: Agent instance
             
         Returns:
-            Memory instance
+            Memory instance (cached if already initialized)
         """
         memory_subdir = get_agent_memory_subdir(agent)
+        
+        # Check cache first to avoid repeated initialization
+        if memory_subdir in Memory._instance_index:
+            return Memory._instance_index[memory_subdir]
         
         log_item = agent.context.log.log(
             type="util",
@@ -122,12 +151,17 @@ class Memory:
             log_item=log_item,
         )
         
-        # Preload knowledge
-        knowledge_subdirs = get_knowledge_subdirs_by_memory_subdir(
-            memory_subdir, agent.config.knowledge_subdirs or []
-        )
-        if knowledge_subdirs:
-            await memory.preload_knowledge(log_item, knowledge_subdirs, memory_subdir)
+        # Cache the instance
+        Memory._instance_index[memory_subdir] = memory
+        
+        # Preload knowledge only if not already loaded
+        if memory_subdir not in Memory._knowledge_loaded:
+            knowledge_subdirs = get_knowledge_subdirs_by_memory_subdir(
+                memory_subdir, agent.config.knowledge_subdirs or []
+            )
+            if knowledge_subdirs:
+                await memory.preload_knowledge(log_item, knowledge_subdirs, memory_subdir)
+            Memory._knowledge_loaded.add(memory_subdir)
         
         return memory
     
@@ -184,6 +218,10 @@ class Memory:
             del Memory._vec_index[memory_subdir]
         if memory_subdir in Memory._hybrid_index:
             del Memory._hybrid_index[memory_subdir]
+        if memory_subdir in Memory._instance_index:
+            del Memory._instance_index[memory_subdir]
+        if memory_subdir in Memory._knowledge_loaded:
+            Memory._knowledge_loaded.discard(memory_subdir)
         
         return await Memory.get(agent)
     
@@ -285,10 +323,34 @@ class Memory:
     
     @staticmethod
     def _get_vector_store(memory_subdir: str, db_dir: str, dimensions: int) -> Optional[VectorStore]:
-        """Get or create VectorStore."""
+        """Get or create VectorStore.
+        
+        Uses AdaptiveVectorStore when MEMORY_VECTOR_BACKEND is set,
+        otherwise uses direct VectorStore.
+        """
         if memory_subdir in Memory._vec_index:
             return Memory._vec_index[memory_subdir]
         
+        # Check if adaptive mode is enabled
+        adaptive_backend = os.getenv("MEMORY_VECTOR_BACKEND", "")
+        if adaptive_backend:
+            # Use adaptive vector store
+            try:
+                config = AdaptiveVectorConfig(
+                    backend=adaptive_backend,
+                    auto_switch_threshold=int(os.getenv("MEMORY_VECTOR_THRESHOLD", "10000")),
+                    db_dir=db_dir,
+                    dimensions=dimensions
+                )
+                adaptive_store = AdaptiveVectorStore(config)
+                # Store the adaptive store (it wraps VectorStore internally)
+                Memory._vec_index[memory_subdir] = adaptive_store
+                PrintStyle.standard(f"✓ Adaptive VectorStore initialized (backend: {adaptive_store.backend_type})")
+                return adaptive_store
+            except Exception as e:
+                PrintStyle.error(f"Failed to initialize AdaptiveVectorStore: {e}, falling back to direct VectorStore")
+        
+        # Direct VectorStore mode (default)
         if not SQLITE_VEC_AVAILABLE:
             PrintStyle.error("sqlite-vec not available, vector search disabled")
             return None
@@ -303,6 +365,58 @@ class Memory:
         except Exception as e:
             PrintStyle.error(f"Failed to initialize VectorStore: {e}")
             return None
+    
+    # ========================================
+    # Phase 3-6 Initialization Methods
+    # ========================================
+    
+    @staticmethod
+    def _get_session_manager(memory_subdir: str, db_dir: str) -> SessionManager:
+        """Get or create SessionManager for session persistence."""
+        if memory_subdir in Memory._session_index:
+            return Memory._session_index[memory_subdir]
+        
+        sessions_dir = os.path.join(db_dir, "sessions")
+        session_manager = SessionManager(sessions_dir)
+        Memory._session_index[memory_subdir] = session_manager
+        return session_manager
+    
+    @staticmethod
+    def _get_sync_manager(memory_subdir: str, db_dir: str) -> MemorySync:
+        """Get or create MemorySync for incremental synchronization."""
+        if memory_subdir in Memory._sync_index:
+            return Memory._sync_index[memory_subdir]
+        
+        sync_db_path = os.path.join(db_dir, "sync_state.db")
+        sync_manager = MemorySync(sync_db_path)
+        Memory._sync_index[memory_subdir] = sync_manager
+        return sync_manager
+    
+    @staticmethod
+    def get_flush_manager() -> MemoryFlush:
+        """Get global MemoryFlush instance for pre-compaction memory preservation."""
+        if Memory._flush_manager is None:
+            flush_enabled = os.getenv("MEMORY_FLUSH_ENABLED", "true").lower() in ("true", "1", "yes")
+            config = MemoryFlushConfig(enabled=flush_enabled)
+            Memory._flush_manager = MemoryFlush(config)
+        return Memory._flush_manager
+    
+    @staticmethod
+    def get_policy_manager() -> SessionPolicyManager:
+        """Get global SessionPolicyManager for per-session configuration."""
+        if Memory._policy_manager is None:
+            Memory._policy_manager = get_policy_manager()
+        return Memory._policy_manager
+    
+    def get_session_manager(self) -> SessionManager:
+        """Get SessionManager for this memory instance."""
+        db_dir = abs_db_dir(self.memory_subdir)
+        return Memory._get_session_manager(self.memory_subdir, db_dir)
+    
+    def get_sync_manager(self) -> MemorySync:
+        """Get MemorySync for this memory instance."""
+        db_dir = abs_db_dir(self.memory_subdir)
+        return Memory._get_sync_manager(self.memory_subdir, db_dir)
     
     # ========================================
     # Search Methods
