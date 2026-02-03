@@ -470,3 +470,61 @@ async def upgrade_to_enhanced(agent: Agent) -> EnhancedMemory:
         PrintStyle.standard("FTS5 sync complete!")
     
     return enhanced
+
+
+# ============================================================
+# Factory Function - Auto-select Memory System
+# ============================================================
+
+def is_enhanced_enabled() -> bool:
+    """Check if enhanced memory is enabled via environment variable."""
+    import os
+    return os.getenv("MEMORY_ENHANCED_ENABLED", "false").lower() in ("true", "1", "yes")
+
+
+def get_cache_size() -> int:
+    """Get cache size from environment variable."""
+    import os
+    try:
+        return int(os.getenv("MEMORY_CACHE_SIZE", "1000"))
+    except ValueError:
+        return 1000
+
+
+def is_cache_enabled() -> bool:
+    """Check if embedding cache is enabled via environment variable."""
+    import os
+    return os.getenv("MEMORY_CACHE_ENABLED", "true").lower() in ("true", "1", "yes")
+
+
+async def get_memory(agent: Agent):
+    """Factory function to get the appropriate Memory instance.
+    
+    This function automatically selects between Memory and EnhancedMemory
+    based on the MEMORY_ENHANCED_ENABLED environment variable.
+    
+    Environment Variables:
+        MEMORY_ENHANCED_ENABLED: Set to 'true' to use EnhancedMemory
+        MEMORY_CACHE_ENABLED: Set to 'true' to enable embedding caching
+        MEMORY_CACHE_SIZE: Number of embeddings to cache (default: 1000)
+    
+    Args:
+        agent: Agent instance
+        
+    Returns:
+        Memory or EnhancedMemory instance
+    
+    Usage:
+        from python.helpers.memory_enhanced import get_memory
+        memory = await get_memory(agent)
+    """
+    if is_enhanced_enabled():
+        return await EnhancedMemory.get(
+            agent,
+            enable_hybrid=True,
+            enable_cache=is_cache_enabled(),
+            cache_size=get_cache_size(),
+        )
+    else:
+        return await Memory.get(agent)
+
