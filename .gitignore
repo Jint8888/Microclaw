@@ -56,3 +56,7 @@ data/
 # .env already covered by **/.env above
 
 docs/designs/
+
+# Auto Claude data directory
+.auto-claude/
+microclaw/
