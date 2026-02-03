@@ -30,6 +30,7 @@ class GatewayState:
     health_checker: "HealthChecker" = None
     config_watcher: "ConfigWatcher" = None
     session_cleaner: "SessionCleaner" = None
+    mcp_sync: "MCPSettingsSync" = None  # On-demand MCP config sync
     is_shutting_down: bool = False
 
 
@@ -116,6 +117,12 @@ def create_app():
         if state.config.hot_reload:
             state.config_watcher = ConfigWatcher(state.config.config_path, on_config_change)
             await state.config_watcher.start()
+
+        # Initialize MCP settings sync for cross-process config sync
+        # (checks on-demand when processing requests, not polling)
+        from .mcp_watcher import MCPSettingsSync, get_settings_file_path
+        state.mcp_sync = MCPSettingsSync.get_instance(get_settings_file_path())
+        await state.mcp_sync.initialize()
 
         logger.info(f"Gateway started on port {state.config.port}")
 

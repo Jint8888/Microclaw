@@ -184,6 +184,13 @@ class ChannelManager:
         """Route message to Agent"""
         start_time = time.time()
 
+        # Check for MCP config updates from WebUI (on-demand sync)
+        try:
+            from python.gateway.mcp_watcher import check_mcp_config_update
+            await check_mcp_config_update()
+        except Exception as e:
+            logger.debug(f"MCP config check failed (non-fatal): {e}")
+
         # Message deduplication check (CHG-004)
         if self.deduplicator.is_duplicate(msg.message_id, msg.channel):
             logger.debug(f"Duplicate message ignored: {msg.channel}:{msg.message_id}")
@@ -247,10 +254,10 @@ class ChannelManager:
         WebUI communicates directly with Agent and is not affected.
 
         Supported patterns:
-        - /a0/tmp/xxx.jpg
-        - /a0/data/xxx.png
-        - /git/agent-zero/tmp/xxx.gif
-        - Docker container paths
+        - /a0/tmp/xxx.jpg (Docker container paths)
+        - /git/agent-zero/tmp/xxx.png
+        - sandbox/images/xxx.jpg (MCP tool output)
+        - http://localhost:8046/images/xxx.jpg (HTTP URLs)
 
         Returns:
             List of Attachment objects for detected images
@@ -265,29 +272,91 @@ class ChannelManager:
         image_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'}
 
         # Path patterns to detect (Docker container paths)
-        # Match any image file under these base directories
         path_patterns = [
             r'(/a0/[^\s\"\'\)\]]*\.(?:jpg|jpeg|png|gif|webp|bmp))',
             r'(/git/agent-zero/[^\s\"\'\)\]]*\.(?:jpg|jpeg|png|gif|webp|bmp))',
             r'(/app/[^\s\"\'\)\]]*\.(?:jpg|jpeg|png|gif|webp|bmp))',
+            # MCP tool sandbox paths (both forward and backslash)
+            r'(sandbox[/\\][^\s\"\'\)\]]*\.(?:jpg|jpeg|png|gif|webp|bmp))',
+            r'(tmp[/\\][^\s\"\'\)\]]*\.(?:jpg|jpeg|png|gif|webp|bmp))',
+        ]
+
+        # HTTP URL patterns for images
+        url_patterns = [
+            r'(https?://[^\s\"\'\)\]]+\.(?:jpg|jpeg|png|gif|webp|bmp))',
         ]
 
         found_paths = set()
+        found_urls = set()
 
+        # Extract local paths
         for pattern in path_patterns:
             matches = re.findall(pattern, response, re.IGNORECASE)
             found_paths.update(matches)
 
+        # Extract HTTP URLs
+        for pattern in url_patterns:
+            matches = re.findall(pattern, response, re.IGNORECASE)
+            found_urls.update(matches)
+
+        # Process local paths (for container-local files)
         for path in found_paths:
-            # Verify file exists
-            if os.path.isfile(path):
-                ext = os.path.splitext(path)[1].lower()
-                if ext in image_extensions:
-                    attachments.append(Attachment(
-                        type=MessageType.IMAGE,
-                        local_path=path,
-                        filename=os.path.basename(path),
-                    ))
-                    logger.info(f"Extracted image attachment: {path}")
+            # Normalize path separators
+            normalized_path = path.replace('\\', '/')
+            
+            # Try both paths
+            for try_path in [path, normalized_path]:
+                if os.path.isfile(try_path):
+                    ext = os.path.splitext(try_path)[1].lower()
+                    if ext in image_extensions:
+                        attachments.append(Attachment(
+                            type=MessageType.IMAGE,
+                            local_path=try_path,
+                            filename=os.path.basename(try_path),
+                        ))
+                        logger.info(f"Extracted image attachment: {try_path}")
+                        break  # Found the file
+
+        # Process URLs
+        for url in found_urls:
+            ext = os.path.splitext(url)[1].lower().split('?')[0]  # Remove query params
+            if ext not in image_extensions:
+                continue
+                
+            # Handle localhost URLs (MCP server running on host)
+            if 'localhost' in url or '127.0.0.1' in url:
+                try:
+                    # Convert to Docker-accessible URL
+                    docker_url = url.replace('localhost', 'host.docker.internal')
+                    docker_url = docker_url.replace('127.0.0.1', 'host.docker.internal')
+                    
+                    # Download image
+                    import requests
+                    import tempfile
+                    response = requests.get(docker_url, timeout=30)
+                    if response.status_code == 200:
+                        # Save to temp file
+                        suffix = ext if ext.startswith('.') else f'.{ext}'
+                        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as f:
+                            f.write(response.content)
+                            attachments.append(Attachment(
+                                type=MessageType.IMAGE,
+                                local_path=f.name,
+                                filename=os.path.basename(url.split('?')[0]),
+                            ))
+                            logger.info(f"Downloaded localhost image to: {f.name}")
+                    else:
+                        logger.warning(f"Failed to download image from {docker_url}: HTTP {response.status_code}")
+                except Exception as e:
+                    logger.error(f"Failed to download localhost image {url}: {e}")
+            else:
+                # External URL - use directly
+                attachments.append(Attachment(
+                    type=MessageType.IMAGE,
+                    url=url,
+                    filename=os.path.basename(url.split('?')[0]),
+                ))
+                logger.info(f"Extracted image URL: {url}")
 
         return attachments
+
