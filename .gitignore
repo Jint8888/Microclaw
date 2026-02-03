@@ -54,3 +54,5 @@ data/
 
 # Personal/sensitive files (keep .env.example, ignore .env)
 # .env already covered by **/.env above
+
+docs/designs/
