@@ -1,30 +1,68 @@
 <div align="center">
 
-# `Agent Zero`
+# `Microclaw`
 
-<p align="center">
-    <a href="https://trendshift.io/repositories/11745" target="_blank"><img src="https://trendshift.io/api/badge/repositories/11745" alt="frdel%2Fagent-zero | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
-</p>
+**A Python implementation of Clawdbot-like features, built on top of Agent Zero framework**
 
-[![Agent Zero Website](https://img.shields.io/badge/Website-agent--zero.ai-0A192F?style=for-the-badge&logo=vercel&logoColor=white)](https://agent-zero.ai) [![Thanks to Sponsors](https://img.shields.io/badge/GitHub%20Sponsors-Thanks%20to%20Sponsors-FF69B4?style=for-the-badge&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/agent0ai) [![Follow on X](https://img.shields.io/badge/X-Follow-000000?style=for-the-badge&logo=x&logoColor=white)](https://x.com/Agent0ai) [![Join our Discord](https://img.shields.io/badge/Discord-Join%20our%20server-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/B8KZKNsPpj) [![Subscribe on YouTube](https://img.shields.io/badge/YouTube-Subscribe-red?style=for-the-badge&logo=youtube&logoColor=white)](https://www.youtube.com/@AgentZeroFW) [![Connect on LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-blue?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/jan-tomasek/) [![Follow on Warpcast](https://img.shields.io/badge/Warpcast-Follow-5A32F3?style=for-the-badge)](https://warpcast.com/agent-zero) 
-
-
-## Documentation:
-
-[Introduction](#a-personal-organic-agentic-framework-that-grows-and-learns-with-you) •
-[Installation](./docs/installation.md) •
-[Development](./docs/development.md) •
-[Extensibility](./docs/extensibility.md) •
-[Connectivity](./docs/connectivity.md) •
-[How to update](./docs/installation.md#how-to-update-agent-zero) •
-[Documentation](./docs/README.md) •
-[Usage](./docs/usage.md)
-
-Or see DeepWiki generated documentation:
-
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/agent0ai/agent-zero)
+[![Forked from Agent Zero](https://img.shields.io/badge/Forked%20from-Agent%20Zero-blue?style=for-the-badge)](https://github.com/frdel/agent-zero)
 
 </div>
+
+> ⚠️ **This project is recommended to be deployed in Docker for isolation and security.**
+
+---
+
+## 🐳 Docker Deployment (Recommended)
+
+### Quick Start
+
+```bash
+# Clone the repository
+git clone https://github.com/Jint8888/Microclaw.git
+cd Microclaw
+
+# Copy environment file and configure
+cp .env.example .env
+# Edit .env to add your API keys (OPENAI_API_KEY, DISCORD_BOT_TOKEN, etc.)
+
+# Build and run with Docker Compose
+docker-compose up -d
+
+# Visit http://localhost:50001 to start
+```
+
+### Build from Source
+
+```bash
+# Build the Docker image
+docker build -t microclaw:latest .
+
+# Or use Docker Compose
+docker-compose build
+docker-compose up -d
+```
+
+### Configuration
+
+1. **Environment Variables** - Edit `.env` file:
+   - `OPENAI_API_KEY` - Your OpenAI API key
+   - `DISCORD_BOT_TOKEN` - Discord bot token (optional)
+   - `TELEGRAM_BOT_TOKEN` - Telegram bot token (optional)
+
+2. **Gateway Configuration** - Edit `conf/gateway.yaml` to enable Discord/Telegram channels
+
+### View Logs
+
+```bash
+docker-compose logs -f
+```
+
+---
+
+## About Agent Zero
+
+<div align="center">
+
 
 
 <div align="center">
