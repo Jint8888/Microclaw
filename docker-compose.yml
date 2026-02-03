@@ -29,8 +29,8 @@ services:
     image: agent-zero-dev:local
     container_name: agent-zero-dev
     ports:
-      - "50080:80"       # Web UI
-      - "50002:50002"    # Gateway API
+      - "50080:80" # Web UI
+      - "50002:50002" # Gateway API
     environment:
       # Gateway configuration
       - GATEWAY_PORT=50002
@@ -53,6 +53,11 @@ services:
       # Debug mode
       - DEBUG=${DEBUG:-false}
 
+      # Enhanced Memory System
+      - MEMORY_ENHANCED_ENABLED=${MEMORY_ENHANCED_ENABLED:-false}
+      - MEMORY_CACHE_ENABLED=${MEMORY_CACHE_ENABLED:-true}
+      - MEMORY_CACHE_SIZE=${MEMORY_CACHE_SIZE:-1000}
+
     volumes:
       # Development: mount source code for live editing
       - .:/git/agent-zero
@@ -70,7 +75,7 @@ services:
     restart: unless-stopped
 
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80/", "&&", "curl", "-f", "http://localhost:50002/api/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:80/", "&&", "curl", "-f", "http://localhost:50002/api/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
