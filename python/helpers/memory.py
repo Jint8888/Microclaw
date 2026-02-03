@@ -11,7 +11,12 @@ Legacy FAISS-based code has been moved to memory_legacy.py.
 """
 
 import os
-import sqlite3
+# Prefer pysqlite3 for extension loading support
+try:
+    import pysqlite3 as sqlite3
+except ImportError:
+    import sqlite3
+
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from langchain_core.documents import Document

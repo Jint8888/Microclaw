@@ -3,9 +3,20 @@
 This module provides a VectorStore class that integrates with sqlite-vec extension
 for storing and querying vector embeddings. It uses the enable->load->disable pattern
 for secure extension loading and supports KNN (K-Nearest Neighbors) queries.
+
+Note: This module prefers pysqlite3-binary over standard sqlite3 because
+pysqlite3-binary includes SQLite with extension loading support enabled.
 """
 
-import sqlite3
+# Try pysqlite3 first (has extension loading support)
+# Fall back to standard sqlite3 if not available
+try:
+    import pysqlite3 as sqlite3
+    PYSQLITE3_AVAILABLE = True
+except ImportError:
+    import sqlite3
+    PYSQLITE3_AVAILABLE = False
+
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 try:
@@ -16,6 +27,7 @@ except ImportError:
     SQLITE_VEC_AVAILABLE = False
     sqlite_vec = None
     serialize_float32 = None
+
 
 
 class VectorStoreError(Exception):

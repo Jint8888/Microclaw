@@ -5,8 +5,14 @@ for full-text search capabilities. It supports content indexing, MATCH queries
 with boolean operators, and ranked result retrieval.
 """
 
-import sqlite3
+# Prefer pysqlite3 for consistency with memory_sqlite_vec.py
+try:
+    import pysqlite3 as sqlite3
+except ImportError:
+    import sqlite3
+
 from typing import Any, Dict, List, Optional, Tuple
+
 
 
 class FTS5Manager:
